@@ -59,6 +59,14 @@ class RuleEngine:
             "○": "○", "⊂": "⊂", "Δ": "Δ", "χ": "χ",
         
     }
+        
+                # Legacy aliases (to warn and still support)
+        self._legacy_aliases = {
+            "+O": "⊕", "O+": "⊕", "oplus": "⊕", "OPLUS": "⊕",
+            "*O": "⊗", "O*": "⊗", "otimes": "⊗", "OTIMES": "⊗",
+            "oO": "○", "nO": "⊂", "dO": "Δ", "cO": "χ",
+        }
+
     # dans RuleEngine.__init__, après tes alias propres:
         self.aliases.update({
             # rétro-compat pour anciens scripts / providers
@@ -68,20 +76,22 @@ class RuleEngine:
         })
 
 
-
     def _norm_op(self, op: str) -> str:
         token = op.strip()
-        # canonical lowercase key
+        # unicode direct → OK
+        if token in self.aliases:
+            return self.aliases[token]
+        # case-insensitive
         key = token.lower()
-        # map things like "+O" -> "+o", "*O" -> "*o", "oO" -> "oo", etc.
-        key = key.replace("o+", "o+").replace("+o", "+o")  # no-op but clarity
-        # unify mixed-case endings like '...O' -> '...o'
-        if key.endswith("o"):
-            pass  # already fine
-        elif key.endswith("O"):
-            key = key[:-1] + "o"
-        # Now lookup (lowercase dict)
-        return self.aliases.get(key, self.aliases.get(token, token))
+        if key in self.aliases:
+            return self.aliases[key]
+        # legacy support + warning
+        if token in self._legacy_aliases:
+            mapped = self._legacy_aliases[token]
+            print(f"[warn] Legacy alias '{token}' → use the new ASCII alias instead "
+                  f"(e.g. opO/otO/maO/thO/buO or ovO/niO/diO/coO). Mapping to '{mapped}'.")
+            return mapped
+        return token
 
     def load_rules_from_text(self, text: str):
         lines = [ln.strip() for ln in text.splitlines() if ln.strip() and not ln.strip().startswith("#")]
