@@ -21,18 +21,43 @@ class RuleEngine:
             }
         }
         self.aliases = {
-            # Partie A (Hilbert A)
-            "opO": "⊕", "⊕": "⊕",          # Harnack (oplus)
-            "otO": "⊗", "⊗": "⊗",          # admissibilité (otimes)
-            "maO": "◇", "◇": "◇",          # marge
-            "thO": "τ", "τ": "τ",          # seuil (threshold)
-            "buO": "♠", "♠": "♠",          # budget de nids (heuristique)
+            # === Partie A (Harnack/admissibilité/marge/seuil/budget) ===
+            # Nouveaux alias (safe)
+            "opo": "⊕",       # Harnack
+            "oto": "⊗",       # admissibilité
+            "mao": "◇",       # marge
+            "tho": "τ",       # seuil (threshold)
+            "buo": "♠",       # budget heuristique
 
-            # Partie B (Hilbert B)
-            "ovO": "○", "○": "○",          # un ovale
-            "niO": "⊂", "⊂": "⊂",          # nid (inclusion d’ovales)
-            "diO": "Δ", "Δ": "Δ",          # distribution
-            "coO": "χ", "χ": "χ",          # complexité
+            # Rétro-compat: anciens alias largement utilisés
+            "+o": "⊕",
+            "o+": "⊕",
+            "oplus": "⊕",
+            "oplUS".lower(): "⊕",   # par sécurité si des prompts mixtes passent
+
+            "*o": "⊗",
+            "o*": "⊗",
+            "otimes": "⊗",
+            "otimes".upper().lower(): "⊗",  # garde-fou
+
+            "◇": "◇", "τ": "τ", "♠": "♠", "⊕": "⊕", "⊗": "⊗",
+
+            # === Partie B (ovales/nids/distribution/complexité) ===
+            # Nouveaux alias (safe)
+            "ovo": "○",       # ovale
+            "nio": "⊂",       # nid
+            "dio": "Δ",       # distribution
+            "coo": "χ",       # complexité
+
+            # Rétro-compat: anciens alias des tests
+            "oo": "○",        # oO
+            "no": "⊂",        # nO
+            "do": "Δ",        # dO
+            "co": "χ",        # cO
+
+            # Unicode self-maps
+            "○": "○", "⊂": "⊂", "Δ": "Δ", "χ": "χ",
+        
     }
     # dans RuleEngine.__init__, après tes alias propres:
         self.aliases.update({
@@ -45,7 +70,18 @@ class RuleEngine:
 
 
     def _norm_op(self, op: str) -> str:
-        return self.aliases.get(op, op)
+        token = op.strip()
+        # canonical lowercase key
+        key = token.lower()
+        # map things like "+O" -> "+o", "*O" -> "*o", "oO" -> "oo", etc.
+        key = key.replace("o+", "o+").replace("+o", "+o")  # no-op but clarity
+        # unify mixed-case endings like '...O' -> '...o'
+        if key.endswith("o"):
+            pass  # already fine
+        elif key.endswith("O"):
+            key = key[:-1] + "o"
+        # Now lookup (lowercase dict)
+        return self.aliases.get(key, self.aliases.get(token, token))
 
     def load_rules_from_text(self, text: str):
         lines = [ln.strip() for ln in text.splitlines() if ln.strip() and not ln.strip().startswith("#")]
